@@ -195,3 +195,23 @@ jobs:
         run: |
           echo "Deployment rollout failed."
           exit 1
+      - name: Cluster diagnostics
+        if: always()
+        run: |
+          echo "===== Nodes ====="
+          kubectl get nodes -o wide
+
+          echo "===== Describe Nodes ====="
+          kubectl describe nodes
+
+          echo "===== Resource Usage ====="
+          kubectl top nodes || true
+          kubectl top pods -A || true
+
+          echo "===== Pending Pods ====="
+          kubectl get pods --field-selector=status.phase=Pending -A
+
+          echo "===== Failed Scheduling ====="
+          kubectl get events -A \
+            --field-selector reason=FailedScheduling \
+            --sort-by=.lastTimestamp
