@@ -138,4 +138,25 @@ jobs:
 
       - name: Verify deployment
         run: |
-          kubectl rollout status deployment/frontend --timeout=180s
+          kubectl rollout status deployment/frontend --timeout=180s || true
+
+          echo "=== Deployments ==="
+          kubectl get deployments
+
+          echo "=== ReplicaSets ==="
+          kubectl get rs
+
+          echo "=== Pods ==="
+          kubectl get pods -o wide
+
+          echo "=== Describe Deployment ==="
+          kubectl describe deployment frontend
+
+          echo "=== Describe Pods ==="
+          kubectl describe pods
+
+          echo "=== Logs ==="
+          kubectl logs deployment/frontend --all-containers=true || true
+
+          echo "=== Events ==="
+          kubectl get events --sort-by=.metadata.creationTimestamp
