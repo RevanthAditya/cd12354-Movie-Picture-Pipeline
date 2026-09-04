@@ -94,7 +94,7 @@ jobs:
             .
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-  deploy:
+    deploy:
     name: Deploy to EKS
     runs-on: ubuntu-latest
     needs: build
@@ -148,38 +148,14 @@ jobs:
       - name: Debug rollout
         if: always()
         run: |
-          echo "===== Deployments ====="
-          kubectl get deployments
-
-          echo "===== ReplicaSets ====="
-          kubectl get rs
-
-          echo "===== Pods ====="
-          kubectl get pods -o wide
-
-          echo "===== Frontend Deployment ====="
-          kubectl describe deployment frontend
-
-          echo "===== Events ====="
-          kubectl get events --sort-by=.metadata.creationTimestamp
-
-      - name: Verify deployment
-        id: rollout
-        continue-on-error: true
-        run: |
-          kubectl rollout status deployment/frontend --timeout=180s
-
-      - name: Debug Kubernetes
-        if: always()
-        run: |
           echo "===== Nodes ====="
           kubectl get nodes -o wide
 
           echo "===== Deployments ====="
-          kubectl get deployments
+          kubectl get deployments -o wide
 
           echo "===== ReplicaSets ====="
-          kubectl get rs
+          kubectl get rs -o wide
 
           echo "===== Pods ====="
           kubectl get pods -o wide
@@ -193,23 +169,8 @@ jobs:
           echo "===== Events ====="
           kubectl get events --sort-by=.metadata.creationTimestamp
 
-          echo "===== Frontend Logs ====="
-          kubectl logs deployment/frontend --all-containers=true || true
-
-      - name: Debug deployment
-        if: always()
-        run: |
-          echo "===== Frontend Deployment ====="
-          kubectl get deployment frontend
-
-          echo "===== Pods ====="
-          kubectl get pods -o wide
-
-          echo "===== Describe Deployment ====="
-          kubectl describe deployment frontend
-
-          echo "===== Describe Pods ====="
-          kubectl describe pods
+          echo "===== Failed Scheduling ====="
+          kubectl get events --field-selector reason=FailedScheduling || true
 
           echo "===== Logs ====="
           kubectl logs deployment/frontend --all-containers=true || true
