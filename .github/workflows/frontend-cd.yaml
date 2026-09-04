@@ -140,23 +140,21 @@ jobs:
         run: |
           kubectl rollout status deployment/frontend --timeout=180s || true
 
-          echo "=== Deployments ==="
-          kubectl get deployments
-
-          echo "=== ReplicaSets ==="
-          kubectl get rs
-
           echo "=== Pods ==="
           kubectl get pods -o wide
 
-          echo "=== Describe Deployment ==="
+          echo "=== Describe frontend deployment ==="
           kubectl describe deployment frontend
 
-          echo "=== Describe Pods ==="
-          kubectl describe pods
+          POD=$(kubectl get pods -l app=frontend -o jsonpath='{.items[0].metadata.name}' || true)
 
-          echo "=== Logs ==="
-          kubectl logs deployment/frontend --all-containers=true || true
+          if [ -n "$POD" ]; then
+            echo "=== Describe Pod ==="
+            kubectl describe pod "$POD"
+
+            echo "=== Pod Logs ==="
+            kubectl logs "$POD" --all-containers=true || true
+          fi
 
           echo "=== Events ==="
-          kubectl get events --sort-by=.metadata.creationTimestamp
+          kubectl get events --sort-by=.metadata.creationTimestampp
