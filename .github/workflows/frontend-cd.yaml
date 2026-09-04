@@ -131,10 +131,31 @@ jobs:
           kustomize edit set image \
             frontend="$ECR_REGISTRY:$GITHUB_SHA"
 
-      - name: Deploy frontend
+            - name: Deploy frontend
         working-directory: starter/frontend/k8s
         run: |
           kustomize build | kubectl apply -f -
+
+      - name: Debug rollout
+        if: always()
+        run: |
+          echo "===== Deployments ====="
+          kubectl get deployments
+
+          echo "===== ReplicaSets ====="
+          kubectl get rs
+
+          echo "===== Pods ====="
+          kubectl get pods -o wide
+
+          echo "===== Describe Deployment ====="
+          kubectl describe deployment frontend
+
+          echo "===== Describe Pods ====="
+          kubectl describe pods -l app=frontend || true
+
+          echo "===== Pod Logs ====="
+          kubectl logs -l app=frontend --all-containers=true --tail=100 || true
 
       - name: Verify deployment
         run: |
