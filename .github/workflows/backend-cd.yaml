@@ -8,11 +8,12 @@ on:
 
 env:
   AWS_REGION: us-east-1
+  CLUSTER_NAME: cluster
   IMAGE_URI: 325138248371.dkr.ecr.us-east-1.amazonaws.com/backend
 
 jobs:
-
   lint:
+    name: Lint Backend
     runs-on: ubuntu-latest
 
     defaults:
@@ -26,14 +27,18 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: |
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
           pip install pipenv
           pipenv install --dev
 
-      - run: |
+      - name: Run flake8
+        run: |
           pipenv run flake8 .
 
   test:
+    name: Test Backend
     runs-on: ubuntu-latest
 
     defaults:
@@ -47,14 +52,18 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: |
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
           pip install pipenv
           pipenv install --dev
 
-      - run: |
+      - name: Run Tests
+        run: |
           pipenv run pytest
 
   deploy:
+    name: Build & Deploy Backend
     needs:
       - lint
       - test
@@ -64,24 +73,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - run: |
-          docker build -t $IMAGE_URI:latest starter/backend
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t $IMAGE_URI:latest \
+            starter/backend
 
-      - run: docker push $IMAGE_URI:latest
+      - name: Push Docker Image
+        run: |
+          docker push $IMAGE_URI:latest
 
-      - run: |
+      - name: Configure kubectl
+        run: |
           aws eks update-kubeconfig \
-            --region us-east-1 \
-            --name cluster
+            --region $AWS_REGION \
+            --name $CLUSTER_NAME
 
-      - run: |
+      - name: Deploy Backend
+        run: |
           kubectl set image deployment/backend \
-          backend=$IMAGE_URI:latest
+            backend=$IMAGE_URI:latest
+
+      - name: Wait for Rollout
+        run: |
+          kubectl rollout status deployment/backend
