@@ -139,7 +139,7 @@ jobs:
         run: |
           kustomize build | kubectl apply -f -
 
-      - name: Verify deployment
+            - name: Verify deployment
         id: rollout
         continue-on-error: true
         run: |
@@ -148,35 +148,41 @@ jobs:
       - name: Debug rollout
         if: always()
         run: |
-          echo "========== DEPLOYMENTS =========="
-          kubectl get deployments -o wide
+          echo "===== NODES ====="
+          kubectl get nodes -o wide
 
-          echo "========== REPLICASETS =========="
-          kubectl get rs -o wide
+          echo "===== NODE DETAILS ====="
+          kubectl describe nodes
 
-          echo "========== PODS =========="
+          echo "===== DEPLOYMENTS ====="
+          kubectl get deployments
+
+          echo "===== PODS ====="
           kubectl get pods -o wide
 
-          echo "========== SERVICES =========="
-          kubectl get svc
+          echo "===== PENDING PODS ====="
+          kubectl describe pods
 
-          echo "========== DEPLOYMENT =========="
-          kubectl describe deployment frontend
+          echo "===== EVENTS ====="
+          kubectl get events --sort-by=.lastTimestamp
 
-          echo "========== EVENTS =========="
-          kubectl get events --sort-by=.metadata.creationTimestamp
+          echo "===== FAILED SCHEDULING ====="
+          kubectl get events --field-selector reason=FailedScheduling
 
-          echo "========== POD DETAILS =========="
-          for pod in $(kubectl get pods -o jsonpath='{.items[*].metadata.name}'); do
-            echo "===== $pod ====="
-            kubectl describe pod "$pod" || true
-          done
+        - name: Node resources
+        if: always()
+        run: |
+          echo "===== NODE RESOURCE USAGE ====="
+          kubectl describe nodes
 
-          echo "========== POD LOGS =========="
-          for pod in $(kubectl get pods -o jsonpath='{.items[*].metadata.name}'); do
-            echo "===== Logs: $pod ====="
-            kubectl logs "$pod" --all-containers=true --tail=200 || true
-          done
+          echo "===== FAILED SCHEDULING EVENTS ====="
+          kubectl get events --field-selector reason=FailedScheduling -A
+
+          echo "===== FRONTEND PODS ====="
+          kubectl describe pods -l app=frontend || true
+
+          echo "===== BACKEND PODS ====="
+          kubectl describe pods -l app=backend || true
 
       - name: Fail workflow if rollout failed
         if: steps.rollout.outcome == 'failure'
