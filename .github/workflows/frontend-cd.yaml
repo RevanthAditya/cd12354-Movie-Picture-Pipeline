@@ -138,6 +138,34 @@ jobs:
         working-directory: starter/frontend/k8s
         run: |
           kustomize build | kubectl apply -f -
+      - name: Debug before rollout
+        run: |
+          echo "===== Deployments ====="
+          kubectl get deployment frontend -o wide
+
+          echo "===== ReplicaSets ====="
+          kubectl get rs
+
+          echo "===== Pods ====="
+          kubectl get pods -o wide
+
+          echo "===== Describe Deployment ====="
+          kubectl describe deployment frontend
+
+          echo "===== Describe ReplicaSets ====="
+          kubectl describe rs
+
+          echo "===== Events ====="
+          kubectl get events --sort-by=.metadata.creationTimestamp
+
+          echo "===== Frontend Pods ====="
+          kubectl describe pods -l app=frontend || true
+
+          for pod in $(kubectl get pods -l app=frontend -o jsonpath='{.items[*].metadata.name}'); do
+            echo "===== LOGS: $pod ====="
+            kubectl logs "$pod" --all-containers=true || true
+          done
+
 
       - name: Verify rollout
         id: rollout
