@@ -169,7 +169,7 @@ jobs:
           echo "===== FAILED SCHEDULING ====="
           kubectl get events --field-selector reason=FailedScheduling
 
-        - name: Node resources
+      - name: Node resources
         if: always()
         run: |
           echo "===== NODE RESOURCE USAGE ====="
