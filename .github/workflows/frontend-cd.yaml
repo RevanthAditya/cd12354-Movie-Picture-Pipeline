@@ -29,7 +29,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
           cache: npm
           cache-dependency-path: starter/frontend/package-lock.json
 
@@ -50,7 +50,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
           cache: npm
           cache-dependency-path: starter/frontend/package-lock.json
 
@@ -139,7 +139,7 @@ jobs:
         run: |
           kustomize build | kubectl apply -f -
 
-            - name: Verify deployment
+      - name: Verify deployment
         id: rollout
         continue-on-error: true
         run: |
@@ -148,41 +148,47 @@ jobs:
       - name: Debug rollout
         if: always()
         run: |
-          echo "===== NODES ====="
+          echo "================ NODES ================"
           kubectl get nodes -o wide
 
-          echo "===== NODE DETAILS ====="
+          echo "================ NODE DETAILS ================"
           kubectl describe nodes
 
-          echo "===== DEPLOYMENTS ====="
-          kubectl get deployments
+          echo "================ DEPLOYMENTS ================"
+          kubectl get deployments -o wide
 
-          echo "===== PODS ====="
+          echo "================ REPLICASETS ================"
+          kubectl get rs -o wide
+
+          echo "================ PODS ================"
           kubectl get pods -o wide
 
-          echo "===== PENDING PODS ====="
-          kubectl describe pods
+          echo "================ SERVICES ================"
+          kubectl get svc
 
-          echo "===== EVENTS ====="
+          echo "================ EVENTS ================"
           kubectl get events --sort-by=.lastTimestamp
 
-          echo "===== FAILED SCHEDULING ====="
-          kubectl get events --field-selector reason=FailedScheduling
+          echo "================ FAILED SCHEDULING EVENTS ================"
+          kubectl get events --field-selector reason=FailedScheduling -A || true
 
-      - name: Node resources
-        if: always()
-        run: |
-          echo "===== NODE RESOURCE USAGE ====="
-          kubectl describe nodes
+          echo "================ FRONTEND DEPLOYMENT ================"
+          kubectl describe deployment frontend || true
 
-          echo "===== FAILED SCHEDULING EVENTS ====="
-          kubectl get events --field-selector reason=FailedScheduling -A
-
-          echo "===== FRONTEND PODS ====="
+          echo "================ FRONTEND PODS ================"
           kubectl describe pods -l app=frontend || true
 
-          echo "===== BACKEND PODS ====="
+          echo "================ BACKEND PODS ================"
           kubectl describe pods -l app=backend || true
+
+          echo "================ NODE RESOURCE USAGE ================"
+          kubectl describe nodes | grep -A20 "Allocated resources" || true
+
+          echo "================ POD LOGS ================"
+          for pod in $(kubectl get pods -o jsonpath='{.items[*].metadata.name}'); do
+            echo "========== $pod =========="
+            kubectl logs "$pod" --all-containers=true --tail=200 || true
+          done
 
       - name: Fail workflow if rollout failed
         if: steps.rollout.outcome == 'failure'
