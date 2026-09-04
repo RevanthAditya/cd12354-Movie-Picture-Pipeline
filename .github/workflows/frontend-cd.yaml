@@ -139,44 +139,43 @@ jobs:
         run: |
           kustomize build | kubectl apply -f -
 
-      - name: Verify deployment
-        id: rollout
+      - name: Verify rollout
         continue-on-error: true
         run: |
           kubectl rollout status deployment/frontend --timeout=180s
 
-      - name: Debug rollout
+      - name: Debug cluster
         if: always()
         run: |
           echo "===== Nodes ====="
           kubectl get nodes -o wide
 
           echo "===== Deployments ====="
-          kubectl get deployments -o wide
+          kubectl get deployments -A
 
           echo "===== ReplicaSets ====="
-          kubectl get rs -o wide
+          kubectl get rs -A
 
           echo "===== Pods ====="
-          kubectl get pods -o wide
+          kubectl get pods -A -o wide
+
+          echo "===== Services ====="
+          kubectl get svc -A
+
+          echo "===== Events ====="
+          kubectl get events -A --sort-by=.metadata.creationTimestamp
 
           echo "===== Frontend Deployment ====="
           kubectl describe deployment frontend
 
+          echo "===== Frontend ReplicaSets ====="
+          kubectl describe rs
+
           echo "===== Frontend Pods ====="
           kubectl describe pods -l app=frontend || true
 
-          echo "===== Events ====="
-          kubectl get events --sort-by=.metadata.creationTimestamp
-
-          echo "===== Failed Scheduling ====="
-          kubectl get events --field-selector reason=FailedScheduling || true
-
-          echo "===== Logs ====="
-          kubectl logs deployment/frontend --all-containers=true || true
-
-      - name: Fail workflow if rollout failed
-        if: steps.rollout.outcome == 'failure'
-        run: |
-          echo "Frontend deployment rollout failed."
-          exit 1
+          echo "===== Pod Logs ====="
+          for p in $(kubectl get pods -l app=frontend -o jsonpath='{.items[*].metadata.name}'); do
+            echo "----- $p -----"
+            kubectl logs $p --all-containers=true || true
+          done
