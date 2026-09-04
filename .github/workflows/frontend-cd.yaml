@@ -136,46 +136,36 @@ jobs:
         run: |
           kustomize build | kubectl apply -f -
 
-      - name: Debug rollout
-        if: always()
-        run: |
-          echo "===== Deployments ====="
-          kubectl get deployments
-
-          echo "===== ReplicaSets ====="
-          kubectl get rs
-
-          echo "===== Pods ====="
-          kubectl get pods -o wide
-
-          echo "===== Describe Deployment ====="
-          kubectl describe deployment frontend
-
-          echo "===== Describe Pods ====="
-          kubectl describe pods -l app=frontend || true
-
-          echo "===== Pod Logs ====="
-          kubectl logs -l app=frontend --all-containers=true --tail=100 || true
-
       - name: Verify deployment
-        run: |
-          kubectl rollout status deployment/frontend --timeout=180s || true
+          id: rollout
+          continue-on-error: true
+          run: |
+            kubectl rollout status deployment/frontend --timeout=180s
 
-          echo "=== Pods ==="
-          kubectl get pods -o wide
+        - name: Debug rollout
+          if: always()
+          run: |
+            echo "=== Deployments ==="
+            kubectl get deployments
 
-          echo "=== Describe frontend deployment ==="
-          kubectl describe deployment frontend
+            echo "=== ReplicaSets ==="
+            kubectl get rs
 
-          POD=$(kubectl get pods -l app=frontend -o jsonpath='{.items[0].metadata.name}' || true)
+            echo "=== Pods ==="
+            kubectl get pods -o wide
 
-          if [ -n "$POD" ]; then
-            echo "=== Describe Pod ==="
-            kubectl describe pod "$POD"
+            echo "=== Describe Deployment ==="
+            kubectl describe deployment frontend
 
-            echo "=== Pod Logs ==="
-            kubectl logs "$POD" --all-containers=true || true
-          fi
+            echo "=== Events ==="
+            kubectl get events --sort-by=.metadata.creationTimestamp
 
-          echo "=== Events ==="
-          kubectl get events --sort-by=.metadata.creationTimestampp
+            for pod in $(kubectl get pods -o jsonpath='{.items[*].metadata.name}'); do
+              echo "===== $pod ====="
+              kubectl describe pod "$pod" || true
+              kubectl logs "$pod" --all-containers=true || true
+            done
+
+        - name: Fail if rollout failed
+          if: steps.rollout.outcome == 'failure'
+          run: exit 1
